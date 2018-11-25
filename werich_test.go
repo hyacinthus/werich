@@ -5,6 +5,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/russross/blackfriday"
+	"github.com/tj/front"
 )
 
 func TestRun(t *testing.T) {
@@ -25,6 +26,12 @@ title: 架构
 	out := Run(input)
 	t.Log(string(out))
 	bf := blackfriday.New(blackfriday.WithNoExtensions())
-	out2 := bf.Parse(input)
+	meta := make(map[string]string)
+	c, err := front.Unmarshal(input, &meta)
+	if err != nil {
+		t.Error(err)
+	}
+	out2 := bf.Parse(c)
+	t.Log(spew.Sdump(meta))
 	t.Log(spew.Sdump(out2))
 }
