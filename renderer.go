@@ -1,18 +1,11 @@
+// Package werich is a
+// Blackfriday Markdown Processor WeApp rich-text Randerer
+// Available at http://github.com/hyacinthus/werich
 //
-// Blackfriday Markdown Processor
-// Available at http://github.com/russross/blackfriday
-//
-// Copyright © 2011 Russ Ross <russ@russross.com>.
-// Distributed under the Simplified BSD License.
+// Copyright © 2018 Muninn <hyacinthus@gmail.com>.
+// Distributed MIT License.
 // See README.md for details.
 //
-
-//
-//
-// HTML rendering backend
-//
-//
-
 package werich
 
 import (
@@ -156,8 +149,9 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		}
 	case bf.Image:
 		if !isValidLink(node.LinkData.Destination) {
-			r.empty(w)
-			return bf.SkipChildren
+			// image always have a alt text children
+			// break this node will bring alt text up a level
+			break
 		}
 		if entering {
 			_, err := fmt.Fprintf(w, `{"name":"img","attrs":{"class":"%smd_img","src":"%s","alt":"%s"}}`,

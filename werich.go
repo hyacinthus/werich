@@ -39,7 +39,7 @@ func (md *MD) Meta(v interface{}) error {
 
 // HTML convert md to html
 func (md *MD) HTML() []byte {
-	return bf.Run(md.body)
+	return bf.Run(md.body, bf.WithExtensions(bf.CommonExtensions))
 }
 
 // Rich render markdown to weapp rich-text json struct
@@ -47,5 +47,5 @@ func (md *MD) Rich() []byte {
 	renderer := &Renderer{
 		HeadingOffset: 1,
 	}
-	return bf.Run(md.body, bf.WithRenderer(renderer))
+	return bf.Run(md.body, bf.WithExtensions(bf.CommonExtensions), bf.WithRenderer(renderer))
 }

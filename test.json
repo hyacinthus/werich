@@ -61,7 +61,10 @@
     },
     "children": [{
         "type": "text",
-        "text": "text test 3\n"
+        "text": "text test 3"
+    }, {
+        "type": "text",
+        "text": ""
     }]
 }, {
     "name": "p",
@@ -411,18 +414,7 @@
     "children": [{
         "type": "text",
         "text": ""
-    }, {
-        "name": "img",
-        "attrs": {
-            "class": "md_img",
-            "src": "https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/image/qrcode.png",
-            "alt": ""
-        },
-        "children": [{
-            "type": "text",
-            "text": "image"
-        }]
-    }]
+    }, {}]
 }, {
     "name": "h5",
     "attrs": {
@@ -439,6 +431,33 @@
     },
     "children": [{
         "type": "text",
-        "text": "// You can edit this code!\n// Click here and start typing.\npackage main\n\nimport \"fmt\"\n\nfunc main() {\n    fmt.Println(\"Hello, 世界\")\n}\n"
+        "text": "// You can edit this code!"
+    }, {
+        "type": "text",
+        "text": "// Click here and start typing."
+    }, {
+        "type": "text",
+        "text": "package main"
+    }, {
+        "type": "text",
+        "text": ""
+    }, {
+        "type": "text",
+        "text": "import \"fmt\""
+    }, {
+        "type": "text",
+        "text": ""
+    }, {
+        "type": "text",
+        "text": "func main() {"
+    }, {
+        "type": "text",
+        "text": "    fmt.Println(\"Hello, 世界\")"
+    }, {
+        "type": "text",
+        "text": "}"
+    }, {
+        "type": "text",
+        "text": ""
     }]
 }]
