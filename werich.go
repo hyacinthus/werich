@@ -3,20 +3,12 @@ package werich
 import (
 	"bytes"
 
-	"github.com/russross/blackfriday"
+	bf "github.com/russross/blackfriday"
 	yaml "gopkg.in/yaml.v2"
 )
 
 // Delimiter
 var yamldelim = []byte("---")
-
-// bf instance
-var bfhtml, bfrich *blackfriday.Markdown
-
-func init() {
-	bfhtml = blackfriday.New(blackfriday.WithExtensions(blackfriday.CommonExtensions))
-	bfrich = blackfriday.New(blackfriday.WithExtensions(blackfriday.CommonExtensions))
-}
 
 // MD Markdown entity
 type MD struct {
@@ -47,7 +39,13 @@ func (md *MD) Meta(v interface{}) error {
 
 // HTML convert md to html
 func (md *MD) HTML() []byte {
-	return bfhtml.Run(md.body)
+	return bf.Run(md.body)
 }
 
 // Rich render markdown to weapp rich-text json struct
+func (md *MD) Rich() []byte {
+	renderer := &Renderer{
+		HeadingOffset: 1,
+	}
+	return bf.Run(md.body, bf.WithRenderer(renderer))
+}

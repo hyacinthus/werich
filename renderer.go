@@ -17,401 +17,93 @@ package werich
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
-	"regexp"
-	"strings"
 
 	bf "github.com/russross/blackfriday"
+	"github.com/sirupsen/logrus"
 )
 
-// HTMLFlags control optional behavior of HTML renderer.
-type HTMLFlags int
-
-// HTML renderer configuration options.
-const (
-	HTMLFlagsNone           HTMLFlags = 0
-	SkipHTML                HTMLFlags = 1 << iota // Skip preformatted HTML blocks
-	SkipImages                                    // Skip embedded images
-	SkipLinks                                     // Skip all links
-	Safelink                                      // Only link to trusted protocols
-	NofollowLinks                                 // Only link with rel="nofollow"
-	NoreferrerLinks                               // Only link with rel="noreferrer"
-	NoopenerLinks                                 // Only link with rel="noopener"
-	HrefTargetBlank                               // Add a blank target
-	CompletePage                                  // Generate a complete HTML page
-	UseXHTML                                      // Generate XHTML output instead of HTML
-	FootnoteReturnLinks                           // Generate a link at the end of a footnote to return to the source
-	Smartypants                                   // Enable smart punctuation substitutions
-	SmartypantsFractions                          // Enable smart fractions (with Smartypants)
-	SmartypantsDashes                             // Enable smart dashes (with Smartypants)
-	SmartypantsLatexDashes                        // Enable LaTeX-style dashes (with Smartypants)
-	SmartypantsAngledQuotes                       // Enable angled double quotes (with Smartypants) for double quotes rendering
-	SmartypantsQuotesNBSP                         // Enable « French guillemets » (with Smartypants)
-	TOC                                           // Generate a table of contents
-)
-
-var (
-	htmlTagRe = regexp.MustCompile("(?i)^" + htmlTag)
-)
-
-const (
-	htmlTag = "(?:" + openTag + "|" + closeTag + "|" + htmlComment + "|" +
-		processingInstruction + "|" + declaration + "|" + cdata + ")"
-	closeTag              = "</" + tagName + "\\s*[>]"
-	openTag               = "<" + tagName + attribute + "*" + "\\s*/?>"
-	attribute             = "(?:" + "\\s+" + attributeName + attributeValueSpec + "?)"
-	attributeValue        = "(?:" + unquotedValue + "|" + singleQuotedValue + "|" + doubleQuotedValue + ")"
-	attributeValueSpec    = "(?:" + "\\s*=" + "\\s*" + attributeValue + ")"
-	attributeName         = "[a-zA-Z_:][a-zA-Z0-9:._-]*"
-	cdata                 = "<!\\[CDATA\\[[\\s\\S]*?\\]\\]>"
-	declaration           = "<![A-Z]+" + "\\s+[^>]*>"
-	doubleQuotedValue     = "\"[^\"]*\""
-	htmlComment           = "<!---->|<!--(?:-?[^>-])(?:-?[^-])*-->"
-	processingInstruction = "[<][?].*?[?][>]"
-	singleQuotedValue     = "'[^']*'"
-	tagName               = "[A-Za-z][A-Za-z0-9-]*"
-	unquotedValue         = "[^\"'=<>`\\x00-\\x20]+"
-)
-
-// RendererParameters is a collection of supplementary parameters tweaking
-// the behavior of various parts of HTML renderer.
-type RendererParameters struct {
-	// Prepend this text to each relative URL.
-	AbsolutePrefix string
-	// Add this text to each footnote anchor, to ensure uniqueness.
-	FootnoteAnchorPrefix string
-	// Show this text inside the <a> tag for a footnote return link, if the
-	// HTML_FOOTNOTE_RETURN_LINKS flag is enabled. If blank, the string
-	// <sup>[return]</sup> is used.
-	FootnoteReturnLinkContents string
-	// If set, add this text to the front of each Heading ID, to ensure
-	// uniqueness.
-	HeadingIDPrefix string
-	// If set, add this text to the back of each Heading ID, to ensure uniqueness.
-	HeadingIDSuffix string
-	// Increase heading levels: if the offset is 1, <h1> becomes <h2> etc.
-	// Negative offset is also valid.
-	// Resulting levels are clipped between 1 and 6.
-	HeadingLevelOffset int
-
-	Title string // Document title (used if CompletePage is set)
-	CSS   string // Optional CSS file URL (used if CompletePage is set)
-	Icon  string // Optional icon file URL (used if CompletePage is set)
-
-	Flags HTMLFlags // Flags allow customizing this renderer's behavior
-}
-
-// Renderer is a type that implements the Renderer interface for HTML output.
-//
-// Do not create this directly, instead use the NewRenderer function.
+// Renderer is a type that implements the Renderer interface for rich-text output.
 type Renderer struct {
-	RendererParameters
-
-	closeTag string // how to end singleton tags: either " />" or ">"
-
-	// Track heading IDs to prevent ID collision in a single generation.
-	headingIDs map[string]int
-
-	lastOutputLen int
-	disableTags   int
+	// If you define this as "pre_", the tag class will seems like "pre_md_xxx",
+	// don't forget "_". The default is empty, clsss will be "md_xxx".
+	CSSPrefix string
+	// Heading level offset, if it is 2, <h2> will change to <h4>
+	HeadingOffset int
 }
 
-const (
-	xhtmlClose = " />"
-	htmlClose  = ">"
-)
-
-// NewRenderer creates and configures an Renderer object, which
-// satisfies the Renderer interface.
-func NewRenderer(params RendererParameters) *Renderer {
-	// configure the rendering engine
-	closeTag := htmlClose
-	if params.Flags&UseXHTML != 0 {
-		closeTag = xhtmlClose
-	}
-
-	if params.FootnoteReturnLinkContents == "" {
-		params.FootnoteReturnLinkContents = `<sup>[return]</sup>`
-	}
-
-	return &Renderer{
-		RendererParameters: params,
-
-		closeTag:   closeTag,
-		headingIDs: make(map[string]int),
-	}
-}
-
-// Look for a character, but ignore it when it's in any kind of quotes, it
-// might be JavaScript
-func skipUntilCharIgnoreQuotes(html []byte, start int, char byte) int {
-	inSingleQuote := false
-	inDoubleQuote := false
-	inGraveQuote := false
-	i := start
-	for i < len(html) {
-		switch {
-		case html[i] == char && !inSingleQuote && !inDoubleQuote && !inGraveQuote:
-			return i
-		case html[i] == '\'':
-			inSingleQuote = !inSingleQuote
-		case html[i] == '"':
-			inDoubleQuote = !inDoubleQuote
-		case html[i] == '`':
-			inGraveQuote = !inGraveQuote
-		}
-		i++
-	}
-	return start
-}
-
-func isRelativeLink(link []byte) (yes bool) {
-	// a tag begin with '#'
-	if link[0] == '#' {
-		return true
-	}
-
-	// link begin with '/' but not '//', the second maybe a protocol relative link
-	if len(link) >= 2 && link[0] == '/' && link[1] != '/' {
-		return true
-	}
-
-	// only the root '/'
-	if len(link) == 1 && link[0] == '/' {
-		return true
-	}
-
+func isValidLink(link []byte) bool {
 	// current directory : begin with "./"
-	if bytes.HasPrefix(link, []byte("./")) {
+	if bytes.HasPrefix(link, []byte("http")) {
 		return true
 	}
-
-	// parent directory : begin with "../"
-	if bytes.HasPrefix(link, []byte("../")) {
-		return true
-	}
-
 	return false
 }
 
-func (r *Renderer) ensureUniqueHeadingID(id string) string {
-	for count, found := r.headingIDs[id]; found; count, found = r.headingIDs[id] {
-		tmp := fmt.Sprintf("%s-%d", id, count+1)
-
-		if _, tmpFound := r.headingIDs[tmp]; !tmpFound {
-			r.headingIDs[id] = count + 1
-			id = tmp
-		} else {
-			id = id + "-1"
-		}
-	}
-
-	if _, found := r.headingIDs[id]; !found {
-		r.headingIDs[id] = 0
-	}
-
-	return id
-}
-
-func (r *Renderer) addAbsPrefix(link []byte) []byte {
-	if r.AbsolutePrefix != "" && isRelativeLink(link) && link[0] != '.' {
-		newDest := r.AbsolutePrefix
-		if link[0] != '/' {
-			newDest += "/"
-		}
-		newDest += string(link)
-		return []byte(newDest)
-	}
-	return link
-}
-
-func appendLinkAttrs(attrs []string, flags HTMLFlags, link []byte) []string {
-	if isRelativeLink(link) {
-		return attrs
-	}
-	val := []string{}
-	if flags&NofollowLinks != 0 {
-		val = append(val, "nofollow")
-	}
-	if flags&NoreferrerLinks != 0 {
-		val = append(val, "noreferrer")
-	}
-	if flags&NoopenerLinks != 0 {
-		val = append(val, "noopener")
-	}
-	if flags&HrefTargetBlank != 0 {
-		attrs = append(attrs, "target=\"_blank\"")
-	}
-	if len(val) == 0 {
-		return attrs
-	}
-	attr := fmt.Sprintf("rel=%q", strings.Join(val, " "))
-	return append(attrs, attr)
-}
-
-func appendLanguageAttr(attrs []string, info []byte) []string {
-	if len(info) == 0 {
-		return attrs
-	}
-	endOfLang := bytes.IndexAny(info, "\t ")
-	if endOfLang < 0 {
-		endOfLang = len(info)
-	}
-	return append(attrs, fmt.Sprintf("class=\"language-%s\"", info[:endOfLang]))
-}
-
-func (r *Renderer) tag(w io.Writer, name []byte, attrs []string) {
-	w.Write(name)
-	if len(attrs) > 0 {
-		w.Write(spaceBytes)
-		w.Write([]byte(strings.Join(attrs, " ")))
-	}
-	w.Write(gtBytes)
-	r.lastOutputLen = 1
-}
-
-func itemOpenCR(node *bf.Node) bool {
-	if node.Prev == nil {
-		return false
-	}
-	ld := node.Parent.ListData
-	return !ld.Tight && ld.ListFlags&bf.ListTypeDefinition == 0
-}
-
-func skipParagraphTags(node *bf.Node) bool {
-	grandparent := node.Parent.Parent
-	if grandparent == nil || grandparent.Type != bf.List {
-		return false
-	}
-	tightOrTerm := grandparent.Tight || node.Parent.ListFlags&bf.ListTypeTerm != 0
-	return grandparent.Type == bf.List && tightOrTerm
-}
-
-func cellAlignment(align bf.CellAlignFlags) string {
-	switch align {
-	case bf.TableAlignmentLeft:
-		return "left"
-	case bf.TableAlignmentRight:
-		return "right"
-	case bf.TableAlignmentCenter:
-		return "center"
-	default:
-		return ""
+func (r *Renderer) tag(w io.Writer, name string) {
+	_, err := fmt.Fprintf(w, `{"name":"%s"}`, name)
+	if err != nil {
+		logrus.WithError(err).Error("write tag failed")
 	}
 }
 
-func (r *Renderer) out(w io.Writer, text []byte) {
-	if r.disableTags > 0 {
-		w.Write(htmlTagRe.ReplaceAll(text, []byte{}))
-	} else {
-		w.Write(text)
+func (r *Renderer) text(w io.Writer, text []byte) {
+	escaped, err := json.Marshal(string(text))
+	if err != nil {
+		logrus.WithError(err).Error("json marshal text failed")
 	}
-	r.lastOutputLen = len(text)
-}
-
-func (r *Renderer) cr(w io.Writer) {
-	if r.lastOutputLen > 0 {
-		r.out(w, nlBytes)
+	_, err = fmt.Fprintf(w, `{"type":"text","text":"%s"}`, escaped[1:len(escaped)-1])
+	if err != nil {
+		logrus.WithError(err).Error("write text failed")
 	}
 }
 
-var (
-	nlBytes    = []byte{'\n'}
-	gtBytes    = []byte{'>'}
-	spaceBytes = []byte{' '}
-)
+func (r *Renderer) start(w io.Writer, tag string) {
+	_, err := fmt.Fprintf(w, `{"name":"%s","attrs":{"class":"%smd_%s"},"children":[`, tag, r.CSSPrefix, tag)
+	if err != nil {
+		logrus.WithError(err).Error("write tag start failed")
+	}
+}
 
-var (
-	brTag              = []byte("<br>")
-	brXHTMLTag         = []byte("<br />")
-	emTag              = []byte("<em>")
-	emCloseTag         = []byte("</em>")
-	strongTag          = []byte("<strong>")
-	strongCloseTag     = []byte("</strong>")
-	delTag             = []byte("<del>")
-	delCloseTag        = []byte("</del>")
-	ttTag              = []byte("<tt>") // n
-	ttCloseTag         = []byte("</tt>")
-	aTag               = []byte("<a")
-	aCloseTag          = []byte("</a>")
-	preTag             = []byte("<pre>") // n
-	preCloseTag        = []byte("</pre>")
-	codeTag            = []byte("<code>")
-	codeCloseTag       = []byte("</code>")
-	pTag               = []byte("<p>")
-	pCloseTag          = []byte("</p>")
-	blockquoteTag      = []byte("<blockquote>")
-	blockquoteCloseTag = []byte("</blockquote>")
-	hrTag              = []byte("<hr>")
-	hrXHTMLTag         = []byte("<hr />")
-	ulTag              = []byte("<ul>")
-	ulCloseTag         = []byte("</ul>")
-	olTag              = []byte("<ol>")
-	olCloseTag         = []byte("</ol>")
-	dlTag              = []byte("<dl>")
-	dlCloseTag         = []byte("</dl>")
-	liTag              = []byte("<li>")
-	liCloseTag         = []byte("</li>")
-	ddTag              = []byte("<dd>")
-	ddCloseTag         = []byte("</dd>")
-	dtTag              = []byte("<dt>")
-	dtCloseTag         = []byte("</dt>")
-	tableTag           = []byte("<table>")
-	tableCloseTag      = []byte("</table>")
-	tdTag              = []byte("<td")
-	tdCloseTag         = []byte("</td>")
-	thTag              = []byte("<th")
-	thCloseTag         = []byte("</th>")
-	theadTag           = []byte("<thead>")
-	theadCloseTag      = []byte("</thead>")
-	tbodyTag           = []byte("<tbody>")
-	tbodyCloseTag      = []byte("</tbody>")
-	trTag              = []byte("<tr>")
-	trCloseTag         = []byte("</tr>")
-	h1Tag              = []byte("<h1")
-	h1CloseTag         = []byte("</h1>")
-	h2Tag              = []byte("<h2")
-	h2CloseTag         = []byte("</h2>")
-	h3Tag              = []byte("<h3")
-	h3CloseTag         = []byte("</h3>")
-	h4Tag              = []byte("<h4")
-	h4CloseTag         = []byte("</h4>")
-	h5Tag              = []byte("<h5")
-	h5CloseTag         = []byte("</h5>")
-	h6Tag              = []byte("<h6")
-	h6CloseTag         = []byte("</h6>")
+// the front part of a tag, if class is empty, default be prefix_md_tagname
+func (r *Renderer) startWithClass(w io.Writer, tag, class string) {
+	if class == "" {
+		class = "md_" + tag
+	}
+	_, err := fmt.Fprintf(w, `{"name":"%s","attrs":{"class":"%s%s"},"children":[`, tag, r.CSSPrefix, class)
+	if err != nil {
+		logrus.WithError(err).Error("write tag start failed")
+	}
+}
 
-	footnotesDivBytes      = []byte("\n<div class=\"footnotes\">\n\n")
-	footnotesCloseDivBytes = []byte("\n</div>\n")
-)
+func (r *Renderer) end(w io.Writer) {
+	_, err := fmt.Fprint(w, `]}`)
+	if err != nil {
+		logrus.WithError(err).Error("write tag end failed")
+	}
+}
 
-func headingTagsFromLevel(level int) ([]byte, []byte) {
+func (r *Renderer) empty(w io.Writer) {
+	_, err := fmt.Fprint(w, `{}`)
+	if err != nil {
+		logrus.WithError(err).Error("write empty failed")
+	}
+}
+
+func headingTag(level int) string {
+	real := level
 	if level <= 1 {
-		return h1Tag, h1CloseTag
+		real = 1
 	}
-	switch level {
-	case 2:
-		return h2Tag, h2CloseTag
-	case 3:
-		return h3Tag, h3CloseTag
-	case 4:
-		return h4Tag, h4CloseTag
-	case 5:
-		return h5Tag, h5CloseTag
+	if level >= 6 {
+		real = 6
 	}
-	return h6Tag, h6CloseTag
+	return fmt.Sprintf("h%d", real)
 }
 
-func (r *Renderer) outHRTag(w io.Writer) {
-	if r.Flags&UseXHTML == 0 {
-		r.out(w, hrTag)
-	} else {
-		r.out(w, hrXHTMLTag)
-	}
-}
-
-// RenderNode is a default renderer of a single node of a syntax tree. For
+// RenderNode is a renderer of a single node of a markdown syntax tree. For
 // block nodes it will be called twice: first time with entering=true, second
 // time with entering=false, so that it could know when it's working on an open
 // tag and when on close. It writes the result to w.
@@ -422,325 +114,190 @@ func (r *Renderer) outHRTag(w io.Writer) {
 // The typical behavior is to return GoToNext, which asks for the usual
 // traversal to the next node.
 func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.WalkStatus {
-	if node.Prev != nil {
-		r.out([]byte(",\n"))
+	if entering && node.Prev != nil {
+		// json list sep, if you want skip some node, write {} to w, for right json syntax.
+		w.Write([]byte(","))
 	}
-	attrs := []string{}
 	switch node.Type {
 	case bf.Text:
-		r.out(node.Literal)
+		r.text(w, node.Literal)
 	case bf.Softbreak:
-		r.cr(w)
-	case bf.Hardbreak:
-		r.out(w, brTag)
-		r.cr(w)
-	case Emph:
-		if entering {
-			r.out(w, emTag)
-		} else {
-			r.out(w, emCloseTag)
-		}
-	case Strong:
-		if entering {
-			r.out(w, strongTag)
-		} else {
-			r.out(w, strongCloseTag)
-		}
-	case Del:
-		if entering {
-			r.out(w, delTag)
-		} else {
-			r.out(w, delCloseTag)
-		}
-	case HTMLSpan:
-		if r.Flags&SkipHTML != 0 {
-			break
-		}
-		r.out(w, node.Literal)
-	case Link:
-		// mark it but don't link it if it is not a safe link: no smartypants
-		dest := node.LinkData.Destination
-		if needSkipLink(r.Flags, dest) {
-			if entering {
-				r.out(w, ttTag)
-			} else {
-				r.out(w, ttCloseTag)
-			}
-		} else {
-			if entering {
-				dest = r.addAbsPrefix(dest)
-				var hrefBuf bytes.Buffer
-				hrefBuf.WriteString("href=\"")
-				escLink(&hrefBuf, dest)
-				hrefBuf.WriteByte('"')
-				attrs = append(attrs, hrefBuf.String())
-				if node.NoteID != 0 {
-					r.out(w, footnoteRef(r.FootnoteAnchorPrefix, node))
-					break
-				}
-				attrs = appendLinkAttrs(attrs, r.Flags, dest)
-				if len(node.LinkData.Title) > 0 {
-					var titleBuff bytes.Buffer
-					titleBuff.WriteString("title=\"")
-					escapeHTML(&titleBuff, node.LinkData.Title)
-					titleBuff.WriteByte('"')
-					attrs = append(attrs, titleBuff.String())
-				}
-				r.tag(w, aTag, attrs)
-			} else {
-				if node.NoteID != 0 {
-					break
-				}
-				r.out(w, aCloseTag)
-			}
-		}
-	case Image:
-		if r.Flags&SkipImages != 0 {
-			return SkipChildren
-		}
-		if entering {
-			dest := node.LinkData.Destination
-			dest = r.addAbsPrefix(dest)
-			if r.disableTags == 0 {
-				//if options.safe && potentiallyUnsafe(dest) {
-				//out(w, `<img src="" alt="`)
-				//} else {
-				r.out(w, []byte(`<img src="`))
-				escLink(w, dest)
-				r.out(w, []byte(`" alt="`))
-				//}
-			}
-			r.disableTags++
-		} else {
-			r.disableTags--
-			if r.disableTags == 0 {
-				if node.LinkData.Title != nil {
-					r.out(w, []byte(`" title="`))
-					escapeHTML(w, node.LinkData.Title)
-				}
-				r.out(w, []byte(`" />`))
-			}
-		}
-	case Code:
-		r.out(w, codeTag)
-		escapeHTML(w, node.Literal)
-		r.out(w, codeCloseTag)
-	case Document:
 		break
-	case Paragraph:
-		if skipParagraphTags(node) {
-			break
-		}
+	case bf.Hardbreak:
+		r.tag(w, "br")
+	case bf.Emph:
 		if entering {
-			// TODO: untangle this clusterfuck about when the newlines need
-			// to be added and when not.
-			if node.Prev != nil {
-				switch node.Prev.Type {
-				case HTMLBlock, List, Paragraph, Heading, CodeBlock, BlockQuote, HorizontalRule:
-					r.cr(w)
-				}
-			}
-			if node.Parent.Type == BlockQuote && node.Prev == nil {
-				r.cr(w)
-			}
-			r.out(w, pTag)
+			r.start(w, "em")
 		} else {
-			r.out(w, pCloseTag)
-			if !(node.Parent.Type == Item && node.Next == nil) {
-				r.cr(w)
+			r.end(w)
+		}
+	case bf.Strong:
+		if entering {
+			r.start(w, "strong")
+		} else {
+			r.end(w)
+		}
+	case bf.Del:
+		if entering {
+			r.start(w, "del")
+		} else {
+			r.end(w)
+		}
+	case bf.HTMLSpan:
+		// can not support html code
+		r.empty(w)
+		return bf.SkipChildren
+	case bf.Link:
+		// just output the text in weapp, mark link with a css class
+		if entering {
+			r.start(w, "a")
+		} else {
+			r.end(w)
+		}
+	case bf.Image:
+		if !isValidLink(node.LinkData.Destination) {
+			r.empty(w)
+			return bf.SkipChildren
+		}
+		if entering {
+			_, err := fmt.Fprintf(w, `{"name":"img","attrs":{"class":"%smd_img","src":"%s","alt":"%s"}}`,
+				r.CSSPrefix, node.LinkData.Destination, node.LinkData.Title)
+			if err != nil {
+				logrus.WithError(err).Error("write tag start failed")
 			}
 		}
-	case BlockQuote:
+		return bf.SkipChildren
+	case bf.Code:
+		r.start(w, "code")
+		r.text(w, node.Literal)
+		r.end(w)
+	case bf.Document:
+		break
+	case bf.Paragraph:
 		if entering {
-			r.cr(w)
-			r.out(w, blockquoteTag)
+			r.start(w, "p")
 		} else {
-			r.out(w, blockquoteCloseTag)
-			r.cr(w)
+			r.end(w)
 		}
-	case HTMLBlock:
-		if r.Flags&SkipHTML != 0 {
-			break
-		}
-		r.cr(w)
-		r.out(w, node.Literal)
-		r.cr(w)
-	case Heading:
-		headingLevel := r.RendererParameters.HeadingLevelOffset + node.Level
-		openTag, closeTag := headingTagsFromLevel(headingLevel)
+	case bf.BlockQuote:
 		if entering {
+			r.start(w, "blockquote")
+		} else {
+			r.end(w)
+		}
+	case bf.HTMLBlock:
+		//  原样输出 html 片段
+		r.text(w, node.Literal)
+	case bf.Heading:
+		headingLevel := node.HeadingData.Level + r.HeadingOffset
+		tag := headingTag(headingLevel)
+		if entering {
+			class := "md_" + tag
 			if node.IsTitleblock {
-				attrs = append(attrs, `class="title"`)
+				class = "md_title"
 			}
-			if node.HeadingID != "" {
-				id := r.ensureUniqueHeadingID(node.HeadingID)
-				if r.HeadingIDPrefix != "" {
-					id = r.HeadingIDPrefix + id
-				}
-				if r.HeadingIDSuffix != "" {
-					id = id + r.HeadingIDSuffix
-				}
-				attrs = append(attrs, fmt.Sprintf(`id="%s"`, id))
-			}
-			r.cr(w)
-			r.tag(w, openTag, attrs)
+			r.startWithClass(w, tag, class)
 		} else {
-			r.out(w, closeTag)
-			if !(node.Parent.Type == Item && node.Next == nil) {
-				r.cr(w)
-			}
+			r.end(w)
 		}
-	case HorizontalRule:
-		r.cr(w)
-		r.outHRTag(w)
-		r.cr(w)
-	case List:
-		openTag := ulTag
-		closeTag := ulCloseTag
-		if node.ListFlags&ListTypeOrdered != 0 {
-			openTag = olTag
-			closeTag = olCloseTag
+	case bf.HorizontalRule:
+		r.tag(w, "hr")
+	case bf.List:
+		tag := "ul"
+		if node.ListFlags&bf.ListTypeOrdered != 0 {
+			tag = "ol"
 		}
-		if node.ListFlags&ListTypeDefinition != 0 {
-			openTag = dlTag
-			closeTag = dlCloseTag
+		if node.ListFlags&bf.ListTypeDefinition != 0 {
+			tag = "dl"
 		}
 		if entering {
-			if node.IsFootnotesList {
-				r.out(w, footnotesDivBytes)
-				r.outHRTag(w)
-				r.cr(w)
-			}
-			r.cr(w)
-			if node.Parent.Type == Item && node.Parent.Parent.Tight {
-				r.cr(w)
-			}
-			r.tag(w, openTag[:len(openTag)-1], attrs)
-			r.cr(w)
+			r.start(w, tag)
 		} else {
-			r.out(w, closeTag)
-			//cr(w)
-			//if node.parent.Type != Item {
-			//	cr(w)
-			//}
-			if node.Parent.Type == Item && node.Next != nil {
-				r.cr(w)
-			}
-			if node.Parent.Type == Document || node.Parent.Type == BlockQuote {
-				r.cr(w)
-			}
-			if node.IsFootnotesList {
-				r.out(w, footnotesCloseDivBytes)
-			}
+			r.end(w)
 		}
-	case Item:
-		openTag := liTag
-		closeTag := liCloseTag
-		if node.ListFlags&ListTypeDefinition != 0 {
-			openTag = ddTag
-			closeTag = ddCloseTag
+	case bf.Item:
+		tag := "li"
+		if node.ListFlags&bf.ListTypeDefinition != 0 {
+			tag = "dd"
 		}
-		if node.ListFlags&ListTypeTerm != 0 {
-			openTag = dtTag
-			closeTag = dtCloseTag
+		if node.ListFlags&bf.ListTypeTerm != 0 {
+			tag = "dt"
 		}
 		if entering {
-			if itemOpenCR(node) {
-				r.cr(w)
-			}
-			if node.ListData.RefLink != nil {
-				slug := slugify(node.ListData.RefLink)
-				r.out(w, footnoteItem(r.FootnoteAnchorPrefix, slug))
-				break
-			}
-			r.out(w, openTag)
+			r.start(w, tag)
 		} else {
-			if node.ListData.RefLink != nil {
-				slug := slugify(node.ListData.RefLink)
-				if r.Flags&FootnoteReturnLinks != 0 {
-					r.out(w, footnoteReturnLink(r.FootnoteAnchorPrefix, r.FootnoteReturnLinkContents, slug))
-				}
+			r.end(w)
+		}
+	case bf.CodeBlock:
+		if len(node.Info) > 0 {
+			// for prismjs, class must be language-xxx
+			_, err := fmt.Fprintf(w, `{"name":"code","attrs":{"class":"language-%s"},"children":[`, node.Info)
+			if err != nil {
+				logrus.WithError(err).Error("write tag start failed")
 			}
-			r.out(w, closeTag)
-			r.cr(w)
+		} else {
+			r.start(w, "code")
 		}
-	case CodeBlock:
-		attrs = appendLanguageAttr(attrs, node.Info)
-		r.cr(w)
-		r.out(w, preTag)
-		r.tag(w, codeTag[:len(codeTag)-1], attrs)
-		escapeHTML(w, node.Literal)
-		r.out(w, codeCloseTag)
-		r.out(w, preCloseTag)
-		if node.Parent.Type != Item {
-			r.cr(w)
+		lines := bytes.Split(node.Literal, []byte("\n"))
+		for i, line := range lines {
+			if i != 0 {
+				w.Write([]byte(","))
+			}
+			r.text(w, line)
 		}
-	case Table:
+		r.end(w)
+	case bf.Table:
 		if entering {
-			r.cr(w)
-			r.out(w, tableTag)
+			r.start(w, "table")
 		} else {
-			r.out(w, tableCloseTag)
-			r.cr(w)
+			r.end(w)
 		}
-	case TableCell:
-		openTag := tdTag
-		closeTag := tdCloseTag
+	case bf.TableCell:
+		tag := "td"
 		if node.IsHeader {
-			openTag = thTag
-			closeTag = thCloseTag
+			tag = "th"
 		}
 		if entering {
-			align := cellAlignment(node.Align)
-			if align != "" {
-				attrs = append(attrs, fmt.Sprintf(`align="%s"`, align))
-			}
-			if node.Prev == nil {
-				r.cr(w)
-			}
-			r.tag(w, openTag, attrs)
+			r.start(w, tag)
 		} else {
-			r.out(w, closeTag)
-			r.cr(w)
+			r.end(w)
 		}
-	case TableHead:
+	case bf.TableHead:
 		if entering {
-			r.cr(w)
-			r.out(w, theadTag)
+			r.start(w, "thead")
 		} else {
-			r.out(w, theadCloseTag)
-			r.cr(w)
+			r.end(w)
 		}
-	case TableBody:
+	case bf.TableBody:
 		if entering {
-			r.cr(w)
-			r.out(w, tbodyTag)
-			// XXX: this is to adhere to a rather silly test. Should fix test.
-			if node.FirstChild == nil {
-				r.cr(w)
-			}
+			r.start(w, "tbody")
 		} else {
-			r.out(w, tbodyCloseTag)
-			r.cr(w)
+			r.end(w)
 		}
-	case TableRow:
+	case bf.TableRow:
 		if entering {
-			r.cr(w)
-			r.out(w, trTag)
+			r.start(w, "tr")
 		} else {
-			r.out(w, trCloseTag)
-			r.cr(w)
+			r.end(w)
 		}
 	default:
-		panic("Unknown node type " + node.Type.String())
+		logrus.Errorf("Unknown node type: %s", node.Type.String())
 	}
-	return GoToNext
+	return bf.GoToNext
 }
 
-// RenderHeader writes HTML document preamble and TOC if requested.
+// RenderHeader writes rich text nodes front [
 func (r *Renderer) RenderHeader(w io.Writer, ast *bf.Node) {
+	_, err := fmt.Fprint(w, "[")
+	if err != nil {
+		logrus.WithError(err).Error("write start failed")
+	}
 }
 
-// RenderFooter writes HTML document footer.
+// RenderFooter writes rich text nodes latter ]
 func (r *Renderer) RenderFooter(w io.Writer, ast *bf.Node) {
+	_, err := fmt.Fprint(w, "]")
+	if err != nil {
+		logrus.WithError(err).Error("write end failed")
+	}
 }
