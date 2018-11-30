@@ -5,14 +5,14 @@ agent:
     type: e1-standard-2
     os_image: ubuntu1804
 
-
-  - name: "Unit tests"
+blocks:
+  - name: 'Unit tests'
     task:
       prologue:
         commands:
           - sem-version go 1.11
       jobs:
-      - name: Go test
-        commands:
-          - checkout
-          - go test
+        - name: Go test
+          commands:
+            - checkout
+            - go test
