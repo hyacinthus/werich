@@ -41,7 +41,7 @@ func TestRun(t *testing.T) {
 	rich := md.Rich()
 	// t.Log(string(rich))
 	dst, err := ioutil.ReadFile("test.txt")
-	assert.Equal(t, rich, dst, "not expected")
+	assert.Equal(t, rich, dst)
 	var pretty bytes.Buffer
 	err = json.Indent(&pretty, rich, "", "    ")
 	assert.Nil(t, err)

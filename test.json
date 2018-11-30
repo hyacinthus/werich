@@ -1,7 +1,7 @@
 [{
     "name": "h2",
     "attrs": {
-        "class": "md_h2"
+        "class": "md-h2"
     },
     "children": [{
         "type": "text",
@@ -10,7 +10,7 @@
 }, {
     "name": "h3",
     "attrs": {
-        "class": "md_h3"
+        "class": "md-h3"
     },
     "children": [{
         "type": "text",
@@ -19,7 +19,7 @@
 }, {
     "name": "p",
     "attrs": {
-        "class": "md_p"
+        "class": "md-p"
     },
     "children": [{
         "type": "text",
@@ -27,7 +27,7 @@
     }, {
         "name": "strong",
         "attrs": {
-            "class": "md_strong"
+            "class": "md-strong"
         },
         "children": [{
             "type": "text",
@@ -40,7 +40,7 @@
 }, {
     "name": "p",
     "attrs": {
-        "class": "md_p"
+        "class": "md-p"
     },
     "children": [{
         "type": "text",
@@ -48,7 +48,7 @@
     }, {
         "name": "em",
         "attrs": {
-            "class": "md_em"
+            "class": "md-em"
         },
         "children": [{
             "type": "text",
@@ -66,7 +66,7 @@
 }, {
     "name": "p",
     "attrs": {
-        "class": "md_p"
+        "class": "md-p"
     },
     "children": [{
         "type": "text",
@@ -80,7 +80,7 @@
 }, {
     "name": "p",
     "attrs": {
-        "class": "md_p"
+        "class": "md-p"
     },
     "children": [{
         "type": "text",
@@ -88,7 +88,7 @@
     }, {
         "name": "code",
         "attrs": {
-            "class": "md_code"
+            "class": "md-code"
         },
         "children": [{
             "type": "text",
@@ -101,12 +101,12 @@
 }, {
     "name": "blockquote",
     "attrs": {
-        "class": "md_blockquote"
+        "class": "md-blockquote"
     },
     "children": [{
         "name": "p",
         "attrs": {
-            "class": "md_p"
+            "class": "md-p"
         },
         "children": [{
             "type": "text",
@@ -121,7 +121,7 @@
 }, {
     "name": "h3",
     "attrs": {
-        "class": "md_h3"
+        "class": "md-h3"
     },
     "children": [{
         "type": "text",
@@ -130,7 +130,7 @@
 }, {
     "name": "h4",
     "attrs": {
-        "class": "md_h4"
+        "class": "md-h4"
     },
     "children": [{
         "type": "text",
@@ -139,17 +139,17 @@
 }, {
     "name": "ul",
     "attrs": {
-        "class": "md_ul"
+        "class": "md-ul"
     },
     "children": [{
         "name": "li",
         "attrs": {
-            "class": "md_li"
+            "class": "md-li"
         },
         "children": [{
             "name": "p",
             "attrs": {
-                "class": "md_p"
+                "class": "md-p"
             },
             "children": [{
                 "type": "text",
@@ -159,12 +159,12 @@
     }, {
         "name": "li",
         "attrs": {
-            "class": "md_li"
+            "class": "md-li"
         },
         "children": [{
             "name": "p",
             "attrs": {
-                "class": "md_p"
+                "class": "md-p"
             },
             "children": [{
                 "type": "text",
@@ -174,12 +174,12 @@
     }, {
         "name": "li",
         "attrs": {
-            "class": "md_li"
+            "class": "md-li"
         },
         "children": [{
             "name": "p",
             "attrs": {
-                "class": "md_p"
+                "class": "md-p"
             },
             "children": [{
                 "type": "text",
@@ -190,7 +190,7 @@
 }, {
     "name": "h4",
     "attrs": {
-        "class": "md_h4"
+        "class": "md-h4"
     },
     "children": [{
         "type": "text",
@@ -199,17 +199,17 @@
 }, {
     "name": "ol",
     "attrs": {
-        "class": "md_ol"
+        "class": "md-ol"
     },
     "children": [{
         "name": "li",
         "attrs": {
-            "class": "md_li"
+            "class": "md-li"
         },
         "children": [{
             "name": "p",
             "attrs": {
-                "class": "md_p"
+                "class": "md-p"
             },
             "children": [{
                 "type": "text",
@@ -219,12 +219,12 @@
     }, {
         "name": "li",
         "attrs": {
-            "class": "md_li"
+            "class": "md-li"
         },
         "children": [{
             "name": "p",
             "attrs": {
-                "class": "md_p"
+                "class": "md-p"
             },
             "children": [{
                 "type": "text",
@@ -234,12 +234,12 @@
     }, {
         "name": "li",
         "attrs": {
-            "class": "md_li"
+            "class": "md-li"
         },
         "children": [{
             "name": "p",
             "attrs": {
-                "class": "md_p"
+                "class": "md-p"
             },
             "children": [{
                 "type": "text",
@@ -250,7 +250,7 @@
 }, {
     "name": "h4",
     "attrs": {
-        "class": "md_h4"
+        "class": "md-h4"
     },
     "children": [{
         "type": "text",
@@ -259,17 +259,17 @@
 }, {
     "name": "ul",
     "attrs": {
-        "class": "md_ul"
+        "class": "md-ul"
     },
     "children": [{
         "name": "li",
         "attrs": {
-            "class": "md_li"
+            "class": "md-li"
         },
         "children": [{
             "name": "p",
             "attrs": {
-                "class": "md_p"
+                "class": "md-p"
             },
             "children": [{
                 "type": "text",
@@ -278,17 +278,17 @@
         }, {
             "name": "ul",
             "attrs": {
-                "class": "md_ul"
+                "class": "md-ul"
             },
             "children": [{
                 "name": "li",
                 "attrs": {
-                    "class": "md_li"
+                    "class": "md-li"
                 },
                 "children": [{
                     "name": "p",
                     "attrs": {
-                        "class": "md_p"
+                        "class": "md-p"
                     },
                     "children": [{
                         "type": "text",
@@ -298,12 +298,12 @@
             }, {
                 "name": "li",
                 "attrs": {
-                    "class": "md_li"
+                    "class": "md-li"
                 },
                 "children": [{
                     "name": "p",
                     "attrs": {
-                        "class": "md_p"
+                        "class": "md-p"
                     },
                     "children": [{
                         "type": "text",
@@ -315,12 +315,12 @@
     }, {
         "name": "li",
         "attrs": {
-            "class": "md_li"
+            "class": "md-li"
         },
         "children": [{
             "name": "p",
             "attrs": {
-                "class": "md_p"
+                "class": "md-p"
             },
             "children": [{
                 "type": "text",
@@ -329,17 +329,17 @@
         }, {
             "name": "ul",
             "attrs": {
-                "class": "md_ul"
+                "class": "md-ul"
             },
             "children": [{
                 "name": "li",
                 "attrs": {
-                    "class": "md_li"
+                    "class": "md-li"
                 },
                 "children": [{
                     "name": "p",
                     "attrs": {
-                        "class": "md_p"
+                        "class": "md-p"
                     },
                     "children": [{
                         "type": "text",
@@ -349,12 +349,12 @@
             }, {
                 "name": "li",
                 "attrs": {
-                    "class": "md_li"
+                    "class": "md-li"
                 },
                 "children": [{
                     "name": "p",
                     "attrs": {
-                        "class": "md_p"
+                        "class": "md-p"
                     },
                     "children": [{
                         "type": "text",
@@ -367,7 +367,7 @@
 }, {
     "name": "h3",
     "attrs": {
-        "class": "md_h3"
+        "class": "md-h3"
     },
     "children": [{
         "type": "text",
@@ -376,7 +376,7 @@
 }, {
     "name": "h4",
     "attrs": {
-        "class": "md_h4"
+        "class": "md-h4"
     },
     "children": [{
         "type": "text",
@@ -385,7 +385,7 @@
 }, {
     "name": "p",
     "attrs": {
-        "class": "md_p"
+        "class": "md-p"
     },
     "children": [{
         "type": "text",
@@ -393,7 +393,7 @@
     }, {
         "name": "a",
         "attrs": {
-            "class": "md_a"
+            "class": "md-a"
         },
         "children": [{
             "type": "text",
@@ -403,7 +403,7 @@
 }, {
     "name": "h4",
     "attrs": {
-        "class": "md_h4"
+        "class": "md-h4"
     },
     "children": [{
         "type": "text",
@@ -414,7 +414,7 @@
 }, {
     "name": "h4",
     "attrs": {
-        "class": "md_h4"
+        "class": "md-h4"
     },
     "children": [{
         "type": "text",
@@ -423,7 +423,7 @@
 }, {
     "name": "p",
     "attrs": {
-        "class": "md_p"
+        "class": "md-p"
     },
     "children": [{
         "type": "text",
@@ -431,7 +431,7 @@
     }, {
         "name": "img",
         "attrs": {
-            "class": "md_img",
+            "class": "md-img",
             "src": "https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/image/qrcode.png",
             "alt": ""
         }
@@ -439,7 +439,7 @@
 }, {
     "name": "h4",
     "attrs": {
-        "class": "md_h4"
+        "class": "md-h4"
     },
     "children": [{
         "type": "text",
@@ -448,7 +448,7 @@
 }, {
     "name": "p",
     "attrs": {
-        "class": "md_p"
+        "class": "md-p"
     },
     "children": [{
         "type": "text",
@@ -460,7 +460,7 @@
 }, {
     "name": "h3",
     "attrs": {
-        "class": "md_h3"
+        "class": "md-h3"
     },
     "children": [{
         "type": "text",
@@ -469,7 +469,7 @@
 }, {
     "name": "code",
     "attrs": {
-        "class": "language-go"
+        "class": "md-code-block"
     },
     "children": [{
         "type": "text",

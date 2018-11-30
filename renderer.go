@@ -20,8 +20,8 @@ import (
 
 // Renderer is a type that implements the Renderer interface for rich-text output.
 type Renderer struct {
-	// If you define this as "pre_", the tag class will seems like "pre_md_xxx",
-	// don't forget "_". The default is empty, clsss will be "md_xxx".
+	// If you define this as "pre-", the tag class will seems like "pre-md-xxx",
+	// don't forget "-". The default is empty, clsss will be "md-xxx".
 	CSSPrefix string
 	// Heading level offset, if it is 2, <h2> will change to <h4>
 	HeadingOffset int
@@ -54,16 +54,16 @@ func (r *Renderer) text(w io.Writer, text []byte) {
 }
 
 func (r *Renderer) start(w io.Writer, tag string) {
-	_, err := fmt.Fprintf(w, `{"name":"%s","attrs":{"class":"%smd_%s"},"children":[`, tag, r.CSSPrefix, tag)
+	_, err := fmt.Fprintf(w, `{"name":"%s","attrs":{"class":"%smd-%s"},"children":[`, tag, r.CSSPrefix, tag)
 	if err != nil {
 		logrus.WithError(err).Error("write tag start failed")
 	}
 }
 
-// the front part of a tag, if class is empty, default be prefix_md_tagname
+// the front part of a tag, if class is empty, default be prefix-md-tagname
 func (r *Renderer) startWithClass(w io.Writer, tag, class string) {
 	if class == "" {
-		class = "md_" + tag
+		class = "md-" + tag
 	}
 	_, err := fmt.Fprintf(w, `{"name":"%s","attrs":{"class":"%s%s"},"children":[`, tag, r.CSSPrefix, class)
 	if err != nil {
@@ -154,7 +154,7 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 			break
 		}
 		if entering {
-			_, err := fmt.Fprintf(w, `{"name":"img","attrs":{"class":"%smd_img","src":"%s","alt":"%s"}}`,
+			_, err := fmt.Fprintf(w, `{"name":"img","attrs":{"class":"%smd-img","src":"%s","alt":"%s"}}`,
 				r.CSSPrefix, node.LinkData.Destination, node.LinkData.Title)
 			if err != nil {
 				logrus.WithError(err).Error("write tag start failed")
@@ -186,9 +186,9 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		headingLevel := node.HeadingData.Level + r.HeadingOffset
 		tag := headingTag(headingLevel)
 		if entering {
-			class := "md_" + tag
+			class := "md-" + tag
 			if node.IsTitleblock {
-				class = "md_title"
+				class = "md-title"
 			}
 			r.startWithClass(w, tag, class)
 		} else {
@@ -223,9 +223,10 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 			r.end(w)
 		}
 	case bf.CodeBlock:
+		// TODO: use golang parse syntax in serverside
 		if len(node.Info) > 0 {
 			// for prismjs, class must be language-xxx
-			_, err := fmt.Fprintf(w, `{"name":"code","attrs":{"class":"language-%s"},"children":[`, node.Info)
+			_, err := fmt.Fprintf(w, `{"name":"code","attrs":{"class":"%smd-code-block"},"children":[`, r.CSSPrefix)
 			if err != nil {
 				logrus.WithError(err).Error("write tag start failed")
 			}
