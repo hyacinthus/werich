@@ -1,6 +1,6 @@
 ---
 date: 2018-11-20 14:14
-title: WeRich 测试
+title: WeRich Test
 author: Muninn
 tags:
   - golang

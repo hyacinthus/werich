@@ -29,7 +29,7 @@ func TestRun(t *testing.T) {
 	assert.Nil(t, md.Meta(meta))
 	assert.Equal(t, "", meta.ID)
 	assert.Equal(t, "2018-11-20 14:14", meta.Date)
-	assert.Equal(t, "WeRich 测试", meta.Title)
+	assert.Equal(t, "WeRich Test", meta.Title)
 	assert.Equal(t, "Muninn", meta.Author)
 	assert.Equal(t, []string{"golang", "wechat"}, meta.Tags)
 	// html
@@ -39,7 +39,8 @@ func TestRun(t *testing.T) {
 	assert.Nil(t, err)
 	// rich
 	rich := md.Rich()
-	dst, err := ioutil.ReadFile("rich.txt")
+	// t.Log(string(rich))
+	dst, err := ioutil.ReadFile("test.txt")
 	assert.Equal(t, rich, dst, "not expected")
 	var pretty bytes.Buffer
 	err = json.Indent(&pretty, rich, "", "    ")
