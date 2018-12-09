@@ -44,8 +44,6 @@ func (md *MD) HTML() []byte {
 
 // Rich render markdown to weapp rich-text json struct
 func (md *MD) Rich() []byte {
-	renderer := &Renderer{
-		HeadingOffset: 1,
-	}
+	renderer := &Renderer{}
 	return bf.Run(md.body, bf.WithExtensions(bf.CommonExtensions), bf.WithRenderer(renderer))
 }

@@ -7,6 +7,7 @@ require (
 	github.com/sirupsen/logrus v1.2.0
 	github.com/stretchr/testify v1.2.2
 	github.com/tj/front v0.0.0-20170212063142-739be213b0a1
+	golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9 // indirect
 	golang.org/x/net v0.0.0-20181129055619-fae4c4e3ad76
 	gopkg.in/yaml.v1 v1.0.0-20140924161607-9f9df34309c0 // indirect
 	gopkg.in/yaml.v2 v2.2.1
