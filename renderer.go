@@ -169,7 +169,11 @@ func (r *Renderer) RenderNode(w io.Writer, node *bf.Node, entering bool) bf.Walk
 		break
 	case bf.Paragraph:
 		if entering {
-			r.start(w, "p")
+			if node.Parent.Type == bf.Item {
+				r.startWithClass(w, "p", "md-p-li")
+			} else {
+				r.start(w, "p")
+			}
 		} else {
 			r.end(w)
 		}
