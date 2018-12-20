@@ -55,6 +55,11 @@ func (md *MD) Meta(v interface{}) error {
 	return yaml.Unmarshal(md.meta, v)
 }
 
+// HasMeta 是否存在 meta data
+func (md *MD) HasMeta() bool {
+	return md.meta != nil && len(md.meta) == 0
+}
+
 // SetMeta 重新生成 meta 信息
 func (md *MD) SetMeta(v interface{}) error {
 	meta, err := yaml.Marshal(v)
