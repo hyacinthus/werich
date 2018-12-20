@@ -40,14 +40,19 @@ func (md *MD) Unix() {
 	md.body = bytes.Replace(md.body, []byte("\r"), []byte("\n"), -1)
 }
 
-// Bytes 输出原文，一般在处理过换行符或者meta数据后进行
-func (md *MD) Bytes() []byte {
-	return append(md.meta, md.body...)
-}
-
 // Reader 给需要的函数提供全文 Reader
 func (md *MD) Reader() io.Reader {
-	return bytes.NewReader(md.Bytes())
+	var buffer bytes.Buffer
+	if md.HasMeta() {
+		buffer.Write(yamldelim)
+		buffer.Write([]byte("\n"))
+		buffer.Write(md.meta)
+		buffer.Write([]byte("\n"))
+		buffer.Write(yamldelim)
+		buffer.Write([]byte("\n"))
+	}
+	buffer.Write(md.body)
+	return &buffer
 }
 
 // Meta unmarshal meta to struct or map v
