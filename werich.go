@@ -2,6 +2,7 @@ package werich
 
 import (
 	"bytes"
+	"io"
 
 	bf "github.com/russross/blackfriday"
 	yaml "gopkg.in/yaml.v2"
@@ -32,9 +33,36 @@ func NewMD(src []byte) *MD {
 	return md
 }
 
+// Unix 将正文的换行符统一成unix样式
+// blackfriday 现在有个bug，无法完美支持 Windows 换行符
+func (md *MD) Unix() {
+	md.body = bytes.Replace(md.body, []byte("\r\n"), []byte("\n"), -1)
+	md.body = bytes.Replace(md.body, []byte("\r"), []byte("\n"), -1)
+}
+
+// Bytes 输出原文，一般在处理过换行符或者meta数据后进行
+func (md *MD) Bytes() []byte {
+	return append(md.meta, md.body...)
+}
+
+// Reader 给需要的函数提供全文 Reader
+func (md *MD) Reader() io.Reader {
+	return bytes.NewReader(md.Bytes())
+}
+
 // Meta unmarshal meta to struct or map v
 func (md *MD) Meta(v interface{}) error {
 	return yaml.Unmarshal(md.meta, v)
+}
+
+// SetMeta 重新生成 meta 信息
+func (md *MD) SetMeta(v interface{}) error {
+	meta, err := yaml.Marshal(v)
+	if err != nil {
+		return err
+	}
+	md.meta = meta
+	return nil
 }
 
 // HTML convert md to html
